@@ -9,8 +9,6 @@ from models import Newsletter, db
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///newsletters.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['JSON_SORT_KEYS'] = False
-app.json.compact = False
 
 db.init_app(app)
 migrate = Migrate(app, db)
