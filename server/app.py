@@ -31,10 +31,22 @@ class NewsletterSchema(ma.SQLAlchemySchema):
 
     # HATEOAS links
     _links = ma.Hyperlinks({
-        "self":
-        ma.URLFor("newsletterbyid", values=dict(id="<id>")),
-        "collection":
-        ma.URLFor("newsletters"),
+        'self': {
+            'href': ma.URLFor('newsletterbyid', values=dict(id='<id>')),
+            'method': 'GET'
+        },
+        'update': {
+            'href': ma.URLFor('newsletterbyid', values=dict(id='<id>')),
+            'method': 'PATCH'
+        },
+        'delete': {
+            'href': ma.URLFor('newsletterbyid', values=dict(id='<id>')),
+            'method': 'DELETE'
+        },
+        'collection': {
+            'href': ma.URLFor('newsletters'),
+            'method': 'GET'
+        }
     })
 
 
@@ -49,8 +61,11 @@ class NewsletterSummarySchema(ma.SQLAlchemySchema):
     published_at = ma.auto_field()
 
     # Only summary fields and a self-link
-    _links = ma.Hyperlinks(
-        {'self': ma.URLFor('newsletterbyid', values=dict(id='<id>'))})
+    _links = ma.Hyperlinks({
+        'self': {
+            'href': ma.URLFor('newsletterbyid', values=dict(id='<id>'))
+        }
+    })
 
 
 newsletter_schema = NewsletterSchema()
