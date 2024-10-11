@@ -1,30 +1,53 @@
 #!/usr/bin/env python3
 
-from flask import Flask, request, make_response
+from flask import Flask, make_response, request
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
 from flask_restful import Api, Resource
-
-from models import db, Newsletter
+from models import Newsletter, db
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///newsletters.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.json.compact = False
 
-migrate = Migrate(app, db)
 db.init_app(app)
+migrate = Migrate(app, db)
+
+ma = Marshmallow(app)
+
+
+class NewsletterSchema(ma.SQLAlchemySchema):
+
+    class Meta:
+        model = Newsletter
+        load_instance = True
+
+    title = ma.auto_field()
+    published_at = ma.auto_field()
+
+    url = ma.Hyperlinks({
+        "self":
+        ma.URLFor("newsletterbyid", values=dict(id="<id>")),
+        "collection":
+        ma.URLFor("newsletters"),
+    })
+
+
+newsletter_schema = NewsletterSchema()
+newsletters_schema = NewsletterSchema(many=True)
 
 api = Api(app)
+
 
 class Index(Resource):
 
     def get(self):
-        
+
         response_dict = {
             "index": "Welcome to the Newsletter RESTful API",
         }
-        
+
         response = make_response(
             response_dict,
             200,
@@ -32,23 +55,21 @@ class Index(Resource):
 
         return response
 
+
 api.add_resource(Index, '/')
+
 
 class Newsletters(Resource):
 
     def get(self):
-        
-        response_dict_list = [n.to_dict() for n in Newsletter.query.all()]
 
-        response = make_response(
-            response_dict_list,
-            200,
-        )
+        newsletters = Newsletter.query.all()
 
-        return response
+        newsletters_json = newsletters_schema.dump(newsletters)
+        return newsletters_json
 
     def post(self):
-        
+
         new_record = Newsletter(
             title=request.form['title'],
             body=request.form['body'],
@@ -57,66 +78,47 @@ class Newsletters(Resource):
         db.session.add(new_record)
         db.session.commit()
 
-        response_dict = new_record.to_dict()
+        new_record_json = newsletter_schema.dump(new_record)
 
-        response = make_response(
-            response_dict,
-            201,
-        )
+        return new_record_json, 201
 
-        return response
 
 api.add_resource(Newsletters, '/newsletters')
+
 
 class NewsletterByID(Resource):
 
     def get(self, id):
 
-        response_dict = Newsletter.query.filter_by(id=id).first().to_dict()
+        newsletter = db.session.get(Newsletter, id)
 
-        response = make_response(
-            response_dict,
-            200,
-        )
-
-        return response
+        newsletter_json = newsletter_schema.dump(newsletter)
+        return newsletter_json
 
     def patch(self, id):
 
-        record = Newsletter.query.filter_by(id=id).first()
+        newsletter = db.session.get(Newsletter, id)
         for attr in request.form:
-            setattr(record, attr, request.form[attr])
+            setattr(newsletter, attr, request.form[attr])
 
-        db.session.add(record)
+        db.session.add(newsletter)
         db.session.commit()
 
-        response_dict = record.to_dict()
+        newsletter_json = newsletter_schema.dump(newsletter)
 
-        response = make_response(
-            response_dict,
-            200
-        )
-
-        return response
+        return newsletter_json
 
     def delete(self, id):
 
-        record = Newsletter.query.filter_by(id=id).first()
-        
-        db.session.delete(record)
+        newsletter = db.session.get(Newsletter, id)
+
+        db.session.delete(newsletter)
         db.session.commit()
 
-        response_dict = {"message": "record successfully deleted"}
+        return {"message": "record successfully deleted"}
 
-        response = make_response(
-            response_dict,
-            200
-        )
-
-        return response
 
 api.add_resource(NewsletterByID, '/newsletters/<int:id>')
-
 
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
