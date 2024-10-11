@@ -13,20 +13,24 @@ app.json.compact = False
 
 db.init_app(app)
 migrate = Migrate(app, db)
-
 ma = Marshmallow(app)
+api = Api(app)
 
 
+# Schemas
 class NewsletterSchema(ma.SQLAlchemySchema):
 
     class Meta:
         model = Newsletter
         load_instance = True
 
+    id = ma.auto_field()
     title = ma.auto_field()
+    body = ma.auto_field()
     published_at = ma.auto_field()
 
-    url = ma.Hyperlinks({
+    # HATEOAS links
+    _links = ma.Hyperlinks({
         "self":
         ma.URLFor("newsletterbyid", values=dict(id="<id>")),
         "collection":
@@ -34,12 +38,26 @@ class NewsletterSchema(ma.SQLAlchemySchema):
     })
 
 
+class NewsletterSummarySchema(ma.SQLAlchemySchema):
+
+    class Meta:
+        model = Newsletter
+        load_instance = True
+
+    id = ma.auto_field()
+    title = ma.auto_field()
+    published_at = ma.auto_field()
+
+    # Only summary fields and a self-link
+    _links = ma.Hyperlinks(
+        {'self': ma.URLFor('newsletterbyid', values=dict(id='<id>'))})
+
+
 newsletter_schema = NewsletterSchema()
-newsletters_schema = NewsletterSchema(many=True)
-
-api = Api(app)
+newsletters_summary_schema = NewsletterSummarySchema(many=True)
 
 
+# Resources
 class Index(Resource):
 
     def get(self):
@@ -62,24 +80,20 @@ api.add_resource(Index, '/')
 class Newsletters(Resource):
 
     def get(self):
-
         newsletters = Newsletter.query.all()
 
-        newsletters_json = newsletters_schema.dump(newsletters)
+        newsletters_json = newsletters_summary_schema.dump(newsletters)
         return newsletters_json
 
     def post(self):
-
         new_record = Newsletter(
             title=request.form['title'],
             body=request.form['body'],
         )
-
         db.session.add(new_record)
         db.session.commit()
 
         new_record_json = newsletter_schema.dump(new_record)
-
         return new_record_json, 201
 
 
