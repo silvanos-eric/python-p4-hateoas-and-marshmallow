@@ -9,6 +9,7 @@ from models import Newsletter, db
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///newsletters.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['JSON_SORT_KEYS'] = False
 app.json.compact = False
 
 db.init_app(app)
@@ -63,7 +64,8 @@ class NewsletterSummarySchema(ma.SQLAlchemySchema):
     # Only summary fields and a self-link
     _links = ma.Hyperlinks({
         'self': {
-            'href': ma.URLFor('newsletterbyid', values=dict(id='<id>'))
+            'href': ma.URLFor('newsletterbyid', values=dict(id='<id>')),
+            'method': 'GET'
         }
     })
 
@@ -101,9 +103,11 @@ class Newsletters(Resource):
         return newsletters_json
 
     def post(self):
+        data = request.form
+
         new_record = Newsletter(
-            title=request.form['title'],
-            body=request.form['body'],
+            title=data['title'],
+            body=data['body'],
         )
         db.session.add(new_record)
         db.session.commit()
